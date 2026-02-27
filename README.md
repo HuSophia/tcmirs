@@ -1,31 +1,67 @@
-# AutoNetCDF
+# tcmirs
 
-During my Research and Development internship at NOAA, I developed **AutoNetCDF**, a software tool that significantly improved the efficiency of information retrieval and data mining tasks for NOAA engineers and scientists. AutoNetCDF automates the process of creating a comprehensive NetCDF file by merging data from the International Best Track Archive for Climate Stewardship (IBTrACS) and NOAA MIRS satellite data. This tool generates a detailed dataset for the lifecycle of a specified hurricane, streamlining data preparation and allowing researchers to focus more on analysis and insights.
+Developed during an R&D internship at NOAA, **tcmirs** automates the creation of a comprehensive netCDF file by merging data from the [International Best Track Archive for Climate Stewardship (IBTrACS)](https://www.ncei.noaa.gov/products/international-best-track-archive) and NOAA MIRS satellite retrievals. Given a storm name and year, the package extracts the full hurricane lifecycle from IBTrACS, identifies MIRS satellite granules that intersect the storm's path, and merges them into a single analysis-ready netCDF file — allowing researchers to focus on analysis rather than data preparation.
 
-The primary functions of **AutoNetCDF** are to:
-- Extract relevant hurricane data from IBTrACs based on storm name and year
-- Identify and process corresponding NOAA MIRS satellite data that aligns with the storm's path
-- Merge these datasets into a single comprehensive NetCDF file for further analysis and visualization
+## Installation
 
-## Instructions
-**1. Set Directory path**
-- Update the `'dir_path'` variable (line 48) with the correct path to your local directory containing MIRS data files.
-  
-**2.Specify User Input** 
-- **Storm Name**: Set the `'storm_name'` variable to the name of the hurricane you want to analyze (e.g., `'IDA'`).
-- **Year**: Set the `'storm_year'` variable to the year in which the storm occurred (e.g. `'2021'`).
-  
-**3. Testing/Production Configuration**
-- If you are testing or running a production version, adjust lines 71 and 72 accordingly:
-  - **Testing**: Leave the lines as they are to process a limited number of data points in the storm's lifecycle (e.g., points 42 and 43 for `'IDA'`). This speeds up execution and allows you to quickly debug and verify the functionality with a smaller dataset. 
-  - **Production**: Comment out lines 71 and 72 to process the entire lifecycle of the storm. This ensures all relevant data points are included in the final output, providing a comprehensive dataset for analysis.
+```bash
+git clone https://github.com/your-username/tcmirs.git
+cd tcmirs
+pip install -e .
+```
 
-**4. Run the Script**
-- Execute the script to generate a NetCDF file with the combined IBTrACs and MIRS data. The output file will be named according to the specified storm and year (e.g. `'IDA_2021_all_data.nc'`) 
+## Usage
 
-### Notes
-- Make sure the MIRS data directory path is correctly specified to avoid **FileNotFound** error.
-- The script processes IBTrACS data from `'ibtracs.ALL.list.v04r00.csv'` and matches it with the NOAA MIRS data format.
-- The satellite data is filtered to include only relevant portions that intersect with the hurricane's path.
+**Command line**
+```bash
+# Full storm lifecycle
+tcmirs --name IDA --year 2021 --mirs-dir /path/to/MIRS_DATA/
+
+# Test on a subset of track points
+tcmirs --name IDA --year 2021 --mirs-dir /path/to/MIRS_DATA/ --test-indices 42 43
+```
+
+**Python API**
+```python
+import xarray as xr
+from tcmirs import get_storm_track, find_mirs_files, load_and_merge_mirs
+from tcmirs import build_output_dataset, write_output
+
+track = get_storm_track("IDA", 2021, "ibtracs.ALL.list.v04r00.csv", filter_missing_wmo=False)
+
+img_files, snd_files = find_mirs_files(track, "/path/to/MIRS_DATA/", track_indices=[42, 43])
+
+ds_img, ds_snd = load_and_merge_mirs(img_files, snd_files, "/path/to/MIRS_DATA/")
+
+ds_ibt = xr.open_dataset("IBTrACS.ALL.v04r00.nc")
+ds_out = build_output_dataset(ds_img, ds_snd, ds_ibt, "IDA", 2021)
+write_output(ds_out, "IDA_2021_all_data.nc")
+```
+
+## Required data files
+
+| File | Source |
+|------|--------|
+| `ibtracs.ALL.list.v04r00.csv` | [IBTrACS downloads](https://www.ncei.noaa.gov/data/international-best-track-archive-for-climate-stewardship-ibtracs/v04r00/access/csv/) |
+| `IBTrACS.ALL.v04r00.nc` | [IBTrACS downloads](https://www.ncei.noaa.gov/data/international-best-track-archive-for-climate-stewardship-ibtracs/v04r00/access/netcdf/) |
+| MIRS granules (`NPR-MIRS-IMG*`, `NPR-MIRS-SND*`) | NOAA MIRS |
+
+## Package structure
+
+```
+tcmirs/
+├── __init__.py    — public API
+├── config.py      — variable lists and constants
+├── ibtracs.py     — IBTrACS track loading and filtering
+├── mirs.py        — MIRS granule discovery and loading
+├── output.py      — dataset merging and netCDF writing
+└── cli.py         — command-line entry point
+```
+
+## Notes
+- MIRS granules are matched to each track point within a ±12 hour window
+- For Atlantic storms, granules that wrap around the dateline are automatically excluded
+- The `--test-indices` flag is recommended for verifying a new storm before processing its full lifecycle
+- IBTrACS 2021 data has incomplete WMO wind/pressure fields; the `filter_missing_wmo` option handles this automatically when `year=2021`
 
 

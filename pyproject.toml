@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.backends.legacy:build"
+
+[project]
+name = "hurricane-mirs"
+version = "0.1.0"
+description = "Build netCDF output from IBTrACS + NOAA MIRS satellite data for tropical cyclones"
+requires-python = ">=3.10"
+dependencies = [
+    "pandas",
+    "pytz",
+    "shapely",
+    "xarray",
+    "netcdf4",
+]
+
+[project.scripts]
+hurricane-mirs = "hurricane_mirs.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
